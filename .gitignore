@@ -1,0 +1,7 @@
+temp.txt
+venv/**
+data/**
+.idea/**
+.python-version
+cmake-build-debug/**
+
