@@ -48,7 +48,7 @@ include(opencv.cmake)
 
 # Experimental corner detection and descriptor
 add_subdirectory(bovw)
-
+add_subdirectory(tracking)
 # Generic test that uses conan libs
 add_executable(intro main.cpp)
 target_link_libraries(

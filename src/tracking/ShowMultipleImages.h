@@ -1,80 +1,21 @@
 //
-// Created by srigun on 6/26/20.
+// Created by sgunnam on 10/5/20.
 //
 
-#ifndef EXAMPLES_SHOWMULTIPLEIMAGES_H
-#define EXAMPLES_SHOWMULTIPLEIMAGES_H
-#pragma once
-#include <opencv2/opencv.hpp>
+#ifndef TRACKING_SHOWMULTIPLEIMAGES_H
+#define TRACKING_SHOWMULTIPLEIMAGES_H
+#include <vector>
+#include <cstdio>
+#include <cstdarg>
 
-#include <stdio.h>
-#include <stdarg.h>
+#include <opencv2/opencv.hpp>
 
 using namespace cv;
 using namespace std;
+// TODO get rid of different ShowMultipleImages files - do code reuse
+void ShowMultipleImagesTracking(const std::string& title, std::vector<cv::Mat>& images_list){
 
-/*Function///////////////////////////////////////////////////////////////
-
-Name:       ShowManyImages
-
-Purpose:
-
-This is a function illustrating how to display more than one
-image in a single window using Intel OpenCV
-
-Parameters:
-
-string title: Title of the window to be displayed
-int    nArgs: Number of images to be displayed
-Mat    img1: First Mat, which contains the first image
-...
-Mat    imgN: First Mat, which contains the Nth image
-
-Language:   C++
-
-The method used is to set the ROIs of a Single Big image and then resizing
-and copying the input images on to the Single Big Image.
-
-This function does not stretch the image...
-It resizes the image without modifying the width/height ratio..
-
-This function can be called like this:
-
-ShowManyImages("Images", 5, img2, img2, img3, img4, img5);
-
-This function can display upto 12 images in a single window.
-It does not check whether the arguments are of type Mat or not.
-The maximum window size is 700 by 660 pixels.
-Does not display anything if the number of arguments is less than
-one or greater than 12.
-
-Idea was from [[BettySanchi]] of OpenCV Yahoo! Groups.
-
-If you have trouble compiling and/or executing
-this code, I would like to hear about it.
-
-You could try posting on the OpenCV Yahoo! Groups
-[url]http://groups.yahoo.com/group/OpenCV/messages/ [/url]
-
-
-Parameswaran,
-Chennai, India.
-
-cegparamesh[at]gmail[dot]com
-
-...
-///////////////////////////////////////////////////////////////////////*/
-#include <algorithm>
-// TO Do, Modify to accommodate multiple types of channel
-void ShowManyImagesForBoVW(const std::string& title, const std::string& test_image, const std::vector<std::string>& matching_images) {
-
-  auto nImages = 1 + matching_images.size();
-  std::vector<cv::Mat> images_list(nImages);
-  images_list.at(0) = cv::imread(test_image);
-  for(auto i=1ul; i < (nImages); i++){
-    images_list.at(i) = cv::imread(matching_images.at(i-1));
-  }
-
+  auto nImages = images_list.size();
   int size;
   int i;
   int m, n;
@@ -161,7 +102,7 @@ void ShowManyImagesForBoVW(const std::string& title, const std::string& test_ima
     // Set the image ROI to display the current image
     // Resize the input image and copy the it to the Single Big Image
     Rect ROI(m, n,  static_cast<int>( static_cast<float>(x)/scale ),
-                    static_cast<int>( static_cast<float>(y)/scale ));
+             static_cast<int>( static_cast<float>(y)/scale ));
     Mat temp; resize(img,temp, Size(ROI.width, ROI.height));
     temp.copyTo(DispImage(ROI));
   }
@@ -171,5 +112,4 @@ void ShowManyImagesForBoVW(const std::string& title, const std::string& test_ima
   imshow( title, DispImage);
   waitKey();
 }
-
-#endif //EXAMPLES_SHOWMULTIPLEIMAGES_H
+#endif//TRACKING_SHOWMULTIPLEIMAGES_H

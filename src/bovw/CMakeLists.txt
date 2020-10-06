@@ -1,20 +1,22 @@
-# Generic test that uses conan libs
-
-add_library(libTracking ../tracking/tracking.cpp ../tracking/tracking.h)
-target_link_libraries(libTracking
+add_library(bowStats Stats.cpp Stats.h)
+target_link_libraries(bowStats
         PRIVATE project_options
         project_warnings
         ${OpenCV_LIBS})
 
-# Generic test that uses conan libs
-add_executable(testTracking ../tracking/testTracking.cpp)
-target_include_directories(testTracking PRIVATE )
-target_link_libraries(testTracking
-        PRIVATE
-        libTracking)
+add_library(libBoVW BoVW.cpp BoVW.h showMultipleImages.h)
+target_link_libraries(libBoVW
+        PRIVATE bowStats
+        project_options
+        project_warnings
+        ${OpenCV_LIBS}
+        gtest
+        gmock)
 
-#add_executable(testTracking2 ../tracking/testTracking.cpp ../tracking/tracking.cpp ../tracking/tracking.h)
-#target_include_directories(testTracking2 PRIVATE )
-#target_link_libraries(testTracking2
-#        PRIVATE
-#        libTracking)
+# Generic test that uses conan libs
+add_executable(testBoVW
+        testBoVW.cpp)
+target_include_directories(testBoVW PRIVATE experimental)
+target_link_libraries(testBoVW
+        PRIVATE
+        libBoVW)
