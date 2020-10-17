@@ -9,24 +9,24 @@
 #include<opencv2/opencv.hpp>
 #include<opencv2/imgproc.hpp>
 
-//#include "ShowMultipleImages.h"
+#include <librealsense2/rs.hpp>
 
 // TODO
 // Two parameters to consider while tracking
 // 1) Motion of the camera
 // 2) Motion of objects within the scene
-// Simple approach first i.e model one motion at a time. Do think about how to combine then later from the beginning itself
-// It's just it's easier to test them separately
 // Simple visual tests first, later on find datasets with ground truth
-// "ssd" assumption
 // Size of the bounding box doesn't change
-// The tracking object can rotate about itself a lot
-// Error in prediction is random noise
-// Optimization: Model mask for template matching step, i.e Having custom contour masks to track and detect instead of rectangles that introduce error in correlation
+// The tracking object can rotate about itself a lot (how to model orientation changes of the object)
+// Optimization: Model mask for template matching step,
+// i.e Having custom contour masks to track and detect instead of rectangles that introduce error in correlation
+
+// Parameters that effect the result
+// size of the object to be tracked
 
 struct TrackingParams{
-  std::string video_file_path           = "/home/sgunnam/CLionProjects/tracking/ps6/input/pres_debate.avi";
-  std::string tracker_initial_location  = "/home/sgunnam/CLionProjects/tracking/ps6/input/pres_debate.txt";
+  std::string video_file_path           = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.avi";
+  std::string tracker_initial_location  = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.txt";
   std::string tracking_type = "ssd";
 };
 

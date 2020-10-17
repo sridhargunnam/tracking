@@ -1,10 +1,12 @@
 # Generic test that uses conan libs
-
+set(RS2_DEPENDENCIES realsense2)
 add_library(libTracking tracking.cpp tracking.h ShowMultipleImages.h)
 target_link_libraries(libTracking
         PRIVATE project_options
         project_warnings
-        ${OpenCV_LIBS})
+        ${OpenCV_LIBS}
+        ${RS2_DEPENDENCIES})
+
 
 # Generic test that uses conan libs
 add_executable(testTracking testTracking.cpp)
