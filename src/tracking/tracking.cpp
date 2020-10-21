@@ -6,25 +6,86 @@
 
 Tracking::Tracking(TrackingParams& trackingParams): trackingParams_(trackingParams)
 {
-  cv::Mat currFrame;
-  cv::Mat prevFrame;
-  cv::VideoCapture cap(trackingParams_.video_file_path);
-  cv::Point2d p1;
-  cv::Point2d p2;
-  cap >> currFrame;
-  while (true) {
-    currFrame.copyTo(prevFrame);
+  if(trackingParams.tracking_type == TrackingAlgos::SSD) {
+    cv::Mat currFrame;
+    cv::Mat prevFrame;
+    cv::VideoCapture cap(trackingParams_.video_file_path);
+    cv::Point2d p1;
+    cv::Point2d p2;
     cap >> currFrame;
-    updateTracker(currFrame, prevFrame, states_);
-    p1 = states_.CurrState.top_left_pt;
-    p2 = states_.CurrState.top_left_pt + states_.CurrState.size_of_rect;
-    cv::rectangle(currFrame, p2, p1, cv::Scalar(255, 0, 0), 5, 8, 0);
-    cv::imshow("Tracking window", currFrame);
-    char c = static_cast<char>(cv::waitKey(27));
-    if (c == 27)
-      break;
+    while (true) {
+      currFrame.copyTo(prevFrame);
+      cap >> currFrame;
+      updateTracker(currFrame, prevFrame, states_);
+      p1 = states_.CurrState.top_left_pt;
+      p2 = states_.CurrState.top_left_pt + states_.CurrState.size_of_rect;
+      cv::rectangle(currFrame, p2, p1, cv::Scalar(255, 0, 0), 5, 8, 0);
+      cv::imshow("Tracking window", currFrame);
+      char c = static_cast<char>(cv::waitKey(27));
+      if (c == 27)
+        break;
+    }
+  } else if(trackingParams.tracking_type == TrackingAlgos::CONTOUR){
+    auto rsCam_ = RSCam();
+
+    //create Background Subtractor objects
+    cv::Ptr<cv::BackgroundSubtractor> pBackSub{cv::createBackgroundSubtractorKNN()};
+
+    cv::Mat frame, fgMask;
+    while (true) {
+      rsCam_.GetCurrentFrame(frame);
+      cv::Mat frame_orig = frame.clone();
+      Morph(frame);
+      //capture >> frame;
+      if (frame.empty())
+        break;
+
+
+      //update the background model
+      pBackSub->apply(frame, fgMask);
+      //get the frame number and write it on the current frame
+      rectangle(frame, cv::Point(10, 2), cv::Point(100, 20),
+                cv::Scalar(255, 255, 255), -1);
+
+      // Countours
+      std::vector<std::vector<cv::Point>> im0Contours;
+      cv::findContours(fgMask, im0Contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+
+      std::vector<std::vector<cv::Point>> fg_contour;
+      std::vector<cv::Point> approx;
+      for (auto i = 0ul; i < im0Contours.size(); i++) {
+        approxPolyDP(im0Contours[i], approx, arcLength(im0Contours[i], true) * 0.02, true);
+        if (fabs(contourArea(approx)) > 5000) {
+          fg_contour.push_back(im0Contours[i]);
+        }
+      }
+      cv::drawContours(frame_orig, fg_contour, -1, cv::Scalar(0, 0, 255), 3);
+
+      //show the current frame and the fg masks
+      imshow("Frame", frame);
+      imshow("FG Mask", fgMask);
+      imshow("Countours", frame_orig);
+
+      //get the input from the keyboard
+      int keyboard = cv::waitKey(30);
+      if (keyboard == 'q' || keyboard == 27)
+        break;
+    }
   }
 }
+
+void Tracking::Morph(cv::Mat& im)
+{
+  cv::Size gaussian_kernel = cv::Size(morphParams_.gaussian_kernel_width, morphParams_.gaussian_kernel_width);
+  cv::GaussianBlur(im, im, gaussian_kernel, 0, 0);
+  //cv::Mat imCanny;
+  //Canny(im, imCanny, 0, thresh, 5);
+  //im = imCanny;
+  //cv::erode(im, im, cv::Mat() , cv::Point (-1, -1),5 , 1, 1);
+  cv::dilate(im, im, cv::Mat(), cv::Point(-1, -1), 5, 1, 1);
+  //cv::threshold(im, im, 127, 255, cv::THRESH_BINARY);
+}
+
 
 void Tracking::updateTracker(const cv::Mat& currFrame,const cv::Mat& prevFrame, States& states ) const{
   cv::Rect2d trackerROI(
