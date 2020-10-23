@@ -22,6 +22,7 @@
 // i.e Having custom contour masks to track and detect instead of rectangles that introduce error in correlation
 
 
+// this should be in camera_helper.cpp(doesn't exist)
 class RSCam
 {
   // Declare depth colorizer for pretty visualization of depth data
@@ -57,47 +58,52 @@ public:
 };
 
 
-// Parameters that effect the result
-// size of the object to be tracked
-enum TrackingAlgos{ SSD, CONTOUR};
-struct TrackingParams{
-  std::string video_file_path           = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.avi";
-  std::string tracker_initial_location  = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.txt";
-  TrackingAlgos tracking_type = TrackingAlgos::CONTOUR;
+struct FilterParams
+{
+  int gaussianKernelWidth = 25;
+  double epsilonForApproxPolyDp = 2e-6;
+  double maxContourAreaToDetect = 5000;
+  bool enableConvexHull = false;
 };
 
-struct MyMorphParams
-{
-  int gaussian_kernel_width = 25;
+// Parameters that effect the result
+// size of the object to be tracked
+enum TrackingAlgorithm { SSD, CONTOUR};
+
+struct TrackingParams{
+  std::string videoFilePath = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.avi";
+  std::string trackerInitialLocation = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.txt";
+  TrackingAlgorithm trackingType = TrackingAlgorithm::CONTOUR;
+  FilterParams filterParams;
 };
 
 struct State{
-  cv::Point2d top_left_pt = {320.8751, 175.1776};
-  cv::Point2d size_of_rect = {103.5404, 129.0504};
+  cv::Point2d topLeftPt = {320.8751, 175.1776};
+  cv::Point2d sizeOfRect = {103.5404, 129.0504};
   cv::Point2d velocity = {0.01, 0.01};
-  cv::Point2d search_win = {100, 100};
+  cv::Point2d searchWin = {100, 100};
 };
 
 struct States{
   State CurrState;
   State NextStatePredicted;
-  State CorrectedState;
+  State CurrStateCorrected;
 };
 
 class Tracking
 {
   TrackingParams trackingParams_;
   States states_;
+  //TODO remove patch_to_track_
   cv::Mat patch_to_track_;
 
-  MyMorphParams morphParams_;
 public:
   explicit Tracking(TrackingParams& trackingParams);
 private:
-  void updateTracker(const cv::Mat& currFrame,const cv::Mat& prevFrame, States& states ) const;
+  void UpdateTracker(const cv::Mat& currFrame,const cv::Mat& prevFrame, States& states ) const;
   void ReadVideo() const;
 
-  void Morph(cv::Mat& im);
+  void FilterAndErode(cv::Mat& im) const;
 };
 
 
