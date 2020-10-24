@@ -5,7 +5,7 @@
 
 // TODO Determine, Centroid, velocity, and define residual error, for each each of the contours
 // TODO Create data structures for the contour based approach
-
+// TODO Lighting affects foreground noise, enhance it using hist equalization, AGC
 int main()
 {
     std::cout << "Testing Tracking\n";

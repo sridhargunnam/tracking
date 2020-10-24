@@ -28,10 +28,9 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
     }
   }
   else if (trackingParams.trackingType == TrackingAlgorithm::CONTOUR) {
+    auto rsCam_ = MyCam(trackingParams);
 
-    auto rsCam_ = RSCam();
-    //create Background Subtract objects
-    cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN() };
+    cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
 
     cv::Mat frame, fgMask;
     while (true) {
@@ -43,7 +42,7 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
         break;
 
       //update the background model
-      pBackSub->apply(frame, fgMask);
+      pBackSub->apply(frame, fgMask, 0.99);
 
       std::vector<std::vector<cv::Point>> contours;
       cv::findContours(fgMask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
@@ -80,6 +79,16 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
 // Based on opencv squares.cpp sample
 void Tracking::FilterAndErode(cv::Mat &im) const
 {
+  {
+    cv::Mat imYUV;
+    cv::cvtColor(im, imYUV, cv::COLOR_BGR2YUV);
+    std::vector<cv::Mat> channels;
+    cv::split(imYUV, channels);
+    cv::equalizeHist(channels[0], channels[0]);
+    cv::Mat result;
+    cv::merge(channels, result);
+    cv::cvtColor(result, im, cv::COLOR_YUV2BGR);
+  }
   cv::Size gaussian_kernel = cv::Size(trackingParams_.filterParams.gaussianKernelWidth, trackingParams_.filterParams.gaussianKernelWidth);
   cv::GaussianBlur(im, im, gaussian_kernel, 0, 0);
   cv::dilate(im, im, cv::Mat(), cv::Point(-1, -1), 5, 1, 1);

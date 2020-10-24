@@ -22,42 +22,6 @@
 // i.e Having custom contour masks to track and detect instead of rectangles that introduce error in correlation
 
 
-// this should be in camera_helper.cpp(doesn't exist)
-class RSCam
-{
-  // Declare depth colorizer for pretty visualization of depth data
-  rs2::colorizer color_map;
-  // Declare RealSense pipeline, encapsulating the actual device and sensors
-  rs2::pipeline pipe;
-
-public:
-  RSCam()
-  {
-    // Start streaming with default recommended configuration
-    pipe.start();
-  }
-
-  ~RSCam()
-  {
-    pipe.stop();
-  }
-
-  void GetCurrentFrame(cv::Mat &image)
-  {
-    rs2::frameset data = pipe.wait_for_frames();// Wait for next set of frames from the camera
-    rs2::frame depth = data.get_depth_frame().apply_filter(color_map);
-    rs2::frame color_frame = data.get_color_frame();
-
-    // Query frame size (width and height)
-    const int w = color_frame.as<rs2::video_frame>().get_width();
-    const int h = color_frame.as<rs2::video_frame>().get_height();
-
-    // Create OpenCV cv::Matrix of size (w,h) from the colorized depth data
-    image = cv::Mat(cv::Size(w, h), CV_8UC3, (void *)color_frame.get_data(), cv::Mat::AUTO_STEP);
-  }
-};
-
-
 struct FilterParams
 {
   int gaussianKernelWidth = 25;
@@ -69,8 +33,9 @@ struct FilterParams
 // Parameters that effect the result
 // size of the object to be tracked
 enum TrackingAlgorithm { SSD, CONTOUR};
-
+enum CameraType {REALSENSE, LAPTOP};
 struct TrackingParams{
+  CameraType cameraType = CameraType::LAPTOP;
   std::string videoFilePath = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.avi";
   std::string trackerInitialLocation = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.txt";
   TrackingAlgorithm trackingType = TrackingAlgorithm::CONTOUR;
@@ -89,6 +54,59 @@ struct States{
   State NextStatePredicted;
   State CurrStateCorrected;
 };
+
+
+
+// this should be in camera_helper.cpp(doesn't exist)
+class MyCam
+{
+  // Declare depth colorizer for pretty visualization of depth data
+  rs2::colorizer color_map;
+  // Declare RealSense pipeline, encapsulating the actual device and sensors
+  rs2::pipeline pipe;
+
+  TrackingParams tracking_params_;
+  cv::VideoCapture video_capture_;
+public:
+  MyCam(TrackingParams &tracking_params) : tracking_params_(tracking_params)
+  {
+    if(tracking_params_.cameraType == CameraType::LAPTOP){
+      cv::Mat image;
+      video_capture_ = cv::VideoCapture(0);
+    } else {
+      // Start streaming with default recommended configuration
+      pipe.start();
+    }
+  }
+
+  ~MyCam()
+  {
+    if(tracking_params_.cameraType == CameraType::LAPTOP){
+      video_capture_.release();
+    } else {
+      pipe.stop();
+    }
+  }
+
+  void GetCurrentFrame(cv::Mat &image)
+  {
+    if(tracking_params_.cameraType == CameraType::LAPTOP) {
+      video_capture_ >> image;
+    } else {
+      rs2::frameset data = pipe.wait_for_frames();// Wait for next set of frames from the camera
+      rs2::frame depth = data.get_depth_frame().apply_filter(color_map);
+      rs2::frame color_frame = data.get_color_frame();
+
+      // Query frame size (width and height)
+      const int w = color_frame.as<rs2::video_frame>().get_width();
+      const int h = color_frame.as<rs2::video_frame>().get_height();
+
+      // Create OpenCV cv::Matrix of size (w,h) from the colorized depth data
+      image = cv::Mat(cv::Size(w, h), CV_8UC3, (void *)color_frame.get_data(), cv::Mat::AUTO_STEP);
+    }
+  }
+};
+
 
 class Tracking
 {
