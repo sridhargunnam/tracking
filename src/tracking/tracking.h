@@ -26,7 +26,7 @@ struct FilterParams
 {
   int gaussianKernelWidth = 25;
   double epsilonForApproxPolyDp = 2e-6;
-  double maxContourAreaToDetect = 5000;
+  double maxContourAreaToDetect = 10000;
   bool enableConvexHull = false;
 };
 
@@ -40,6 +40,17 @@ struct TrackingParams{
   std::string trackerInitialLocation = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.txt";
   TrackingAlgorithm trackingType = TrackingAlgorithm::CONTOUR;
   FilterParams filterParams;
+};
+
+struct StateKF{
+  cv::Point2d centroid = {0,0};
+};
+
+struct StatesKF{
+  StateKF PrevStateDetected;
+  StateKF CurrStateDetected;
+  StateKF NextStatePredicted;
+  StateKF CurrStateCorrected;
 };
 
 struct State{
@@ -72,7 +83,9 @@ public:
   {
     if(tracking_params_.cameraType == CameraType::LAPTOP){
       cv::Mat image;
-      video_capture_ = cv::VideoCapture(0);
+      // Realsense camera(435i), RGB camera id is 4 when used from open cv, whereas on a laptop this ID would be 0
+      video_capture_ = cv::VideoCapture(4);
+      //video_capture_.open(0,cv::CAP_V4L);
     } else {
       // Start streaming with default recommended configuration
       pipe.start();
@@ -112,6 +125,8 @@ class Tracking
 {
   TrackingParams trackingParams_;
   States states_;
+
+  StatesKF statesKf_;
   //TODO remove patch_to_track_
   cv::Mat patch_to_track_;
 

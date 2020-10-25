@@ -28,13 +28,14 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
     }
   }
   else if (trackingParams.trackingType == TrackingAlgorithm::CONTOUR) {
-    auto rsCam_ = MyCam(trackingParams);
+    auto cam = MyCam(trackingParams);
 
     cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
 
     cv::Mat frame, fgMask;
+    cv::Rect rect_stale;
     while (true) {
-      rsCam_.GetCurrentFrame(frame);
+      cam.GetCurrentFrame(frame);
       //TODO : frame_orig only used for debugging but affects performance now, should be refactored to include only for debug mode
       cv::Mat frame_orig = frame.clone();
       FilterAndErode(frame);
@@ -48,20 +49,33 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
       cv::findContours(fgMask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
 
       std::vector<std::vector<cv::Point>> filteredContours;
+      std::vector<cv::Point2d> filteredCentroids;
       std::vector<cv::Point> approxCurve;
-      for (auto i = 0ul; i < contours.size(); i++) {
-        approxPolyDP(contours[i], approxCurve, arcLength(contours[i], true) * trackingParams.filterParams.epsilonForApproxPolyDp, true);
+
+
+      for (auto & contour : contours) {
+        approxPolyDP(contour, approxCurve, arcLength(contour, true) * trackingParams.filterParams.epsilonForApproxPolyDp, true);
         if (fabs(contourArea(approxCurve)) > trackingParams.filterParams.maxContourAreaToDetect) {
           if(trackingParams.filterParams.enableConvexHull) {
             cv::Mat hullPoints;
-            cv::convexHull(contours[i], hullPoints);
+            cv::convexHull(contour, hullPoints);
             filteredContours.push_back(hullPoints);
-          } else
-            filteredContours.push_back(contours[i]);
+          } else {
+            filteredContours.push_back(contour);
+          }
+          auto all_moments = cv::moments(contour, true);
+          statesKf_.PrevStateDetected.centroid = statesKf_.CurrStateDetected.centroid;
+          statesKf_.CurrStateDetected.centroid = cv::Point2d {
+            (all_moments.m10/ all_moments.m00),
+            (all_moments.m01 / all_moments.m00)};
+          cv::Rect rect = cv::boundingRect(contour);
+          cv::rectangle(frame_orig, rect, cv::Scalar(0,255,0), 3);
+          rect_stale = rect;
         }
       }
 
-      cv::drawContours(frame_orig, filteredContours, -1, cv::Scalar(0, 0, 255), 3);
+      cv::rectangle(frame_orig, rect_stale, cv::Scalar(0,0,255), 3);
+      cv::drawContours(frame_orig, filteredContours, -1, cv::Scalar(255, 0, 0), 3);
 
       //show the current frame and the fg masks
       imshow("Frame", frame);

@@ -3,8 +3,8 @@
 //
 #include "tracking.h"
 
-// TODO Determine, Centroid, velocity, and define residual error, for each each of the contours
-// TODO Create data structures for the contour based approach
+// TODO Create data structures that tracks all the filtered Contours.
+// TODO Determine velocity, and define residual error, for each each of the contours
 // TODO Lighting affects foreground noise, enhance it using hist equalization, AGC
 int main()
 {
