@@ -21,7 +21,6 @@
 // Optimization: Model mask for template matching step,
 // i.e Having custom contour masks to track and detect instead of rectangles that introduce error in correlation
 
-
 struct FilterParams
 {
   int gaussianKernelWidth = 25;
@@ -35,7 +34,7 @@ struct FilterParams
 enum TrackingAlgorithm { SSD, CONTOUR};
 enum CameraType {REALSENSE, LAPTOP};
 struct TrackingParams{
-  CameraType cameraType = CameraType::LAPTOP;
+  CameraType cameraType = CameraType::REALSENSE;
   std::string videoFilePath = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.avi";
   std::string trackerInitialLocation = "/home/sgunnam/CLionProjects/tracking/ps6/input/noisy_debate.txt";
   TrackingAlgorithm trackingType = TrackingAlgorithm::CONTOUR;
