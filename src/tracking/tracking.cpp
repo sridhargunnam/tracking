@@ -32,8 +32,24 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
 
     cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
 
+    // TODO refactor Kalman related states
+    cv::KalmanFilter kalmanFilter_(2,1,0);
+    cv::Mat kalmanState_(2,1, CV_32F);
+    cv::Mat processNoise_(2,1,CV_32F);
+    cv::Mat measurement_ = cv::Mat::zeros(1,1,CV_32F);
+    {
+      randn( kalmanState_, cv::Scalar::all(0), cv::Scalar::all(0.1) );
+      kalmanFilter_.transitionMatrix = (cv::Mat_<float>(2, 2) << 1, 1, 0, 1);
+      setIdentity(kalmanFilter_.measurementMatrix);
+      setIdentity(kalmanFilter_.processNoiseCov, cv::Scalar::all(1e-5));
+      setIdentity(kalmanFilter_.measurementNoiseCov, cv::Scalar::all(1e-1));
+      setIdentity(kalmanFilter_.errorCovPost, cv::Scalar::all(1));
+      randn(kalmanFilter_.statePost, cv::Scalar::all(0), cv::Scalar::all(0.1));
+    }
+
     cv::Mat frame, fgMask;
     cv::Rect rect_stale;
+
     while (true) {
       cam.GetCurrentFrame(frame);
       //TODO : frame_orig only used for debugging but affects performance now, should be refactored to include only for debug mode
@@ -52,7 +68,7 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
       std::vector<cv::Point2d> filteredCentroids;
       std::vector<cv::Point> approxCurve;
 
-
+      // Replace the below for loop with std::sort and a lambda
       for (auto & contour : contours) {
         approxPolyDP(contour, approxCurve, arcLength(contour, true) * trackingParams.filterParams.epsilonForApproxPolyDp, true);
         if (fabs(contourArea(approxCurve)) > trackingParams.filterParams.maxContourAreaToDetect) {
@@ -74,8 +90,20 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
         }
       }
 
+      std::sort(filteredContours.begin(), filteredContours.end(), [](auto& lhs, auto& rhs)
+                  {
+                    return fabs(cv::contourArea(lhs) > fabs(cv::contourArea(rhs) ) ) ;
+                  });
+
+      std::vector<std::vector<cv::Point>> tempFilt ; //= filteredContours;
+      if(filteredContours.size() > 0) {
+        tempFilt = { filteredContours[0] };
+
+      }
+
       cv::rectangle(frame_orig, rect_stale, cv::Scalar(0,0,255), 3);
-      cv::drawContours(frame_orig, filteredContours, -1, cv::Scalar(255, 0, 0), 3);
+      //cv::drawContours(frame_orig, filteredContours, -1, cv::Scalar(255, 0, 0), 3);
+      cv::drawContours(frame_orig, tempFilt, -1, cv::Scalar(255, 0, 0), 3);
 
       //show the current frame and the fg masks
       imshow("Frame", frame);
@@ -93,16 +121,6 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
 // Based on opencv squares.cpp sample
 void Tracking::FilterAndErode(cv::Mat &im) const
 {
-  {
-    cv::Mat imYUV;
-    cv::cvtColor(im, imYUV, cv::COLOR_BGR2YUV);
-    std::vector<cv::Mat> channels;
-    cv::split(imYUV, channels);
-    cv::equalizeHist(channels[0], channels[0]);
-    cv::Mat result;
-    cv::merge(channels, result);
-    cv::cvtColor(result, im, cv::COLOR_YUV2BGR);
-  }
   cv::Size gaussian_kernel = cv::Size(trackingParams_.filterParams.gaussianKernelWidth, trackingParams_.filterParams.gaussianKernelWidth);
   cv::GaussianBlur(im, im, gaussian_kernel, 0, 0);
   cv::dilate(im, im, cv::Mat(), cv::Point(-1, -1), 5, 1, 1);
