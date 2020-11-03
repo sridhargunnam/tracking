@@ -13,7 +13,8 @@ add_executable(testTracking testTracking.cpp)
 target_include_directories(testTracking PRIVATE )
 target_link_libraries(testTracking
         PRIVATE
-        libTracking)
+        libTracking
+        -lpthread)
 
 #add_executable(testTracking2 testTracking.cpp tracking.cpp tracking.h)
 #target_include_directories(testTracking2 PRIVATE )
