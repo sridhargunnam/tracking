@@ -10,7 +10,7 @@ int main(){
 
 // TODO
 //  Performance : Profile, Parallelize the code
-//  Validation using metrics like accuracy(partially done), the usefulness of centroid
+//  Validation using metrics like accuracy(partially done), the usefulness of centroid_measured
 //  Refactor for performance, testing and debug capabilities(be able to annotate descriptors, keypoints at later stages of the pipeline
 //  Test - Reading Images with no descriptors, file checking
 //  Capabilities - change descriptors

@@ -3,7 +3,7 @@
 //
 #include "tracking.h"
 // https://www.udacity.com/wiki/cs373/kalman-filter-matrices
-// VECTOR X, the State variables ( n = 2, contour's centroid position(x,y), depth(z), velocity)
+// VECTOR X, the State variables ( n = 2, contour's centroid_measured position(x,y), depth(z), velocity)
 // Size = n x 1 = 2 x 1,
 // Matrix F, the update matrix
 // Size = n x n = 2 x 2,
@@ -18,6 +18,7 @@
 // U, The move vector
 // Size = n x 1 = 2 x 1
 
+// TODO Fix the kalman gemm, kf.correct(measure) error
 // TODO Go through the kalman filter implementation in openCV
 // TODO Visualize the Matrix value changes as well
 // TODO Understand Kalman filter i.e measurement, predict, correct steps. Set up kalman filter based on the opencv example - https://docs.opencv.org/4.5.0/de/d70/samples_2cpp_2kalman_8cpp-example.html#a23

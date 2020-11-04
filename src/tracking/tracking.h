@@ -42,7 +42,8 @@ struct TrackingParams{
 };
 
 struct StateKF{
-  cv::Point2d centroid = {0,0};
+  cv::Point2d centroid_measured = {0,0};
+  cv::Point2d centroid_tracked = {0,0};
 };
 
 struct StatesKF{

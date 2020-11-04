@@ -36,75 +36,106 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
     cv::KalmanFilter kalmanFilter_(2,1,0);
     cv::Mat kalmanState_(2,1, CV_32F);
     cv::Mat processNoise_(2,1,CV_32F);
-    cv::Mat measurement_ = cv::Mat::zeros(1,1,CV_32F);
+    cv::Mat measurement_ = cv::Mat::zeros(2,1,CV_32F);
     {
-      randn( kalmanState_, cv::Scalar::all(0), cv::Scalar::all(0.1) );
+      {
+        //cv::Mat frame, fgMask;
+        //for(int i=0; i<0; i++) {
+        //  cam.GetCurrentFrame(frame);
+        //  if (frame.empty()) {
+        //    std::cout << "Couldn't read frame at init\n";
+        //  }
+        //  FilterAndErode(frame);
+        //  //update the background model
+        //  pBackSub->apply(frame, fgMask, 0.99);
+        //}
+        //cv::Mat frame_orig = frame.clone();
+        //std::vector<std::vector<cv::Point>> contours;
+        //cv::findContours(fgMask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+        //std::sort(contours.begin(), contours.end(), [](auto& lhs, auto& rhs)
+        //{
+        //       return fabs(cv::contourArea(lhs) > fabs(cv::contourArea(rhs) ) ) ;
+        //});
+        //auto all_moments = cv::moments(contours[0], true);
+        //statesKf_.CurrStateDetected.centroid_measured = cv::Point2d {
+        //  (all_moments.m10/ all_moments.m00),
+        //  (all_moments.m01 / all_moments.m00)};
+        //kalmanFilter_.statePre.at<double>(0,0) = statesKf_.CurrStateDetected.centroid_measured.x;
+        //kalmanFilter_.statePre.at<double>(1,0) = statesKf_.CurrStateDetected.centroid_measured.y;
+        kalmanFilter_.statePre.at<double>(0,0) = 320;
+        kalmanFilter_.statePre.at<double>(1,0) = 240;
+        //cv::Rect rect = cv::boundingRect(contours[0]);
+        //cv::rectangle(frame_orig, rect, cv::Scalar(0,0,255), 3);
+
+        //show the current frame and the fg masks
+        //imshow("FrameI", frame);
+        //imshow("FG MaskI", fgMask);
+        //imshow("ContoursI", frame_orig);
+        //cv::waitKey(0);
+      }
+      //randn( kalmanState_, cv::Scalar::all(0), cv::Scalar::all(0.1) );
       kalmanFilter_.transitionMatrix = (cv::Mat_<float>(2, 2) << 1, 1, 0, 1);
       setIdentity(kalmanFilter_.measurementMatrix);
       setIdentity(kalmanFilter_.processNoiseCov, cv::Scalar::all(1e-5));
       setIdentity(kalmanFilter_.measurementNoiseCov, cv::Scalar::all(1e-1));
       setIdentity(kalmanFilter_.errorCovPost, cv::Scalar::all(1));
+      // TODO may need to fix statePost initialization
       randn(kalmanFilter_.statePost, cv::Scalar::all(0), cv::Scalar::all(0.1));
     }
-
     cv::Mat frame, fgMask;
-    cv::Rect rect_stale;
-
+    cv::Rect rect_measured;
+    std::vector<std::vector<cv::Point>> maxAreaContours;
+    cam.GetCurrentFrame(frame);
     while (true) {
       cam.GetCurrentFrame(frame);
-      //TODO : frame_orig only used for debugging but affects performance now, should be refactored to include only for debug mode
-      cv::Mat frame_orig = frame.clone();
-      FilterAndErode(frame);
       if (frame.empty())
         break;
+      cv::Mat frame_orig = frame.clone();
+      if(cv::theRNG().uniform(0,4) != 0) {
+        FilterAndErode(frame);
+        pBackSub->apply(frame, fgMask, 0.99);
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(fgMask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
 
-      //update the background model
-      pBackSub->apply(frame, fgMask, 0.99);
+        //std::vector<cv::Point2d> filteredCentroids;
+        //std::vector<cv::Point> approxCurve;
 
-      std::vector<std::vector<cv::Point>> contours;
-      cv::findContours(fgMask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+        if (!contours.empty()) {
+          std::sort(contours.begin(), contours.end(), [](auto &lhs, auto &rhs) {
+            return fabs(cv::contourArea(lhs) > fabs(cv::contourArea(rhs)));
+          });
 
-      std::vector<std::vector<cv::Point>> filteredContours;
-      std::vector<cv::Point2d> filteredCentroids;
-      std::vector<cv::Point> approxCurve;
-
-      // Replace the below for loop with std::sort and a lambda
-      for (auto & contour : contours) {
-        approxPolyDP(contour, approxCurve, arcLength(contour, true) * trackingParams.filterParams.epsilonForApproxPolyDp, true);
-        if (fabs(contourArea(approxCurve)) > trackingParams.filterParams.maxContourAreaToDetect) {
-          if(trackingParams.filterParams.enableConvexHull) {
+          if (trackingParams.filterParams.enableConvexHull) {
             cv::Mat hullPoints;
-            cv::convexHull(contour, hullPoints);
-            filteredContours.push_back(hullPoints);
+            cv::convexHull(contours[0], hullPoints);
+            maxAreaContours.push_back(hullPoints);
           } else {
-            filteredContours.push_back(contour);
+            maxAreaContours.push_back(contours[0]);
           }
-          auto all_moments = cv::moments(contour, true);
-          statesKf_.PrevStateDetected.centroid = statesKf_.CurrStateDetected.centroid;
-          statesKf_.CurrStateDetected.centroid = cv::Point2d {
-            (all_moments.m10/ all_moments.m00),
-            (all_moments.m01 / all_moments.m00)};
-          cv::Rect rect = cv::boundingRect(contour);
-          cv::rectangle(frame_orig, rect, cv::Scalar(0,255,0), 3);
-          rect_stale = rect;
+          auto all_moments = cv::moments(maxAreaContours[0], true);
+          measurement_.at<double>(0,0) = (all_moments.m10 / all_moments.m00);
+          measurement_.at<double>(1,0) = (all_moments.m01 / all_moments.m00);
+
+          cv::Rect rect_detect = cv::boundingRect(maxAreaContours[0]);
+          rect_detect.height = 50;
+          rect_detect.width  = 50;
+          cv::rectangle(frame_orig, rect_detect, cv::Scalar(0, 255, 0), 3);
+          rect_measured = rect_detect;
+          //measurement_ = kalmanFilter_.measurementMatrix*kalmanState_;
+          std::cout << "measurement = " << measurement_ << std::endl;
+          if(!measurement_.empty())
+            kalmanFilter_.correct(measurement_);
+          cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
+          //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
         }
+      } else {
+        kalmanState_ = kalmanFilter_.predict();
+        cv::Rect rect_tracking(kalmanState_.at<int>(0), kalmanState_.at<int>(1), 50, 50);
+        cv::rectangle(frame_orig, rect_measured, cv::Scalar(255,0,0), 3);
       }
 
-      std::sort(filteredContours.begin(), filteredContours.end(), [](auto& lhs, auto& rhs)
-                  {
-                    return fabs(cv::contourArea(lhs) > fabs(cv::contourArea(rhs) ) ) ;
-                  });
-
-      std::vector<std::vector<cv::Point>> tempFilt ; //= filteredContours;
-      if(filteredContours.size() > 0) {
-        tempFilt = { filteredContours[0] };
-
-      }
-
-      cv::rectangle(frame_orig, rect_stale, cv::Scalar(0,0,255), 3);
-      //cv::drawContours(frame_orig, filteredContours, -1, cv::Scalar(255, 0, 0), 3);
-      cv::drawContours(frame_orig, tempFilt, -1, cv::Scalar(255, 0, 0), 3);
-
+      //cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
+      //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
       //show the current frame and the fg masks
       imshow("Frame", frame);
       imshow("FG Mask", fgMask);
