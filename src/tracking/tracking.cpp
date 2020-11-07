@@ -26,17 +26,15 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
       if (c == 27)
         break;
     }
-  }
-  else if (trackingParams.trackingType == TrackingAlgorithm::CONTOUR) {
+  } else if (trackingParams.trackingType == TrackingAlgorithm::CONTOUR) {
     auto cam = MyCam(trackingParams);
-
     cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
 
     // TODO refactor Kalman related states
-    cv::KalmanFilter kalmanFilter_(4,2,0);
-    cv::Mat kalmanState_(2,1, CV_32F);
-    cv::Mat processNoise_(2,1,CV_32F);
-    cv::Mat measurement_ = cv::Mat::zeros(2,1,CV_32F);
+    cv::KalmanFilter kalmanFilter_(4, 2, 0);
+    cv::Mat kalmanState_(2, 1, CV_32F);
+    cv::Mat processNoise_(2, 1, CV_32F);
+    cv::Mat measurement_ = cv::Mat::zeros(2, 1, CV_32F);
     {
       {
         //cv::Mat frame, fgMask;
@@ -82,31 +80,39 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
       // 0 0 1 0
       // 0 0 0 1
       setIdentity(kalmanFilter_.measurementMatrix);
-      kalmanFilter_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1,0,1,0,  0,1,0,1,  0,0,1,0,  0,0,0,1);
-      setIdentity(kalmanFilter_.processNoiseCov, cv::Scalar::all(1e-5));
+      kalmanFilter_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
+      // processNoise needs empirical estimation, it can't be just some random value. eg. for 1e-5 , ti stops tracking when there is no motion in the scene.
+      setIdentity(kalmanFilter_.processNoiseCov, cv::Scalar::all(1e-3));
       setIdentity(kalmanFilter_.measurementNoiseCov, cv::Scalar::all(1e-1));
       setIdentity(kalmanFilter_.errorCovPost, cv::Scalar::all(1));
       // TODO may need to fix statePost initialization
       randn(kalmanFilter_.statePost, cv::Scalar::all(0), cv::Scalar::all(0.1));
     }
-    cv::Mat frame, fgMask;
+    cv::Mat frame, fgMask, frame_orig;
     cv::Rect rect_measured;
-
+    std::vector<std::vector<cv::Point>> maxAreaContours;
     cam.GetCurrentFrame(frame);
     int cnt = 0;
+    bool run_once = true;
+
+    cv::Rect rect_tracking;
     while (true) {
-      std::vector<std::vector<cv::Point>> maxAreaContours;
+      //std::cout << "At index " << cnt << " : " << std::endl;
+      ++cnt;
+      maxAreaContours.clear();
       cam.GetCurrentFrame(frame);
       if (frame.empty())
         break;
-      cv::Mat frame_orig = frame.clone();
-      //if(cv::theRNG().uniform(0,4) != 0) {
+      frame_orig = frame.clone();
+      cv::Rect rect_detect;
+
+      if ( run_once || (cv::theRNG().uniform(0, 100) < 50) ){
+        run_once = false;
         FilterAndErode(frame);
         pBackSub->apply(frame, fgMask, 0.99);
         std::vector<std::vector<cv::Point>> contours;
         cv::findContours(fgMask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
 
-      cv::Rect rect_detect;
         if (!contours.empty()) {
           std::sort(contours.begin(), contours.end(), [](auto &lhs, auto &rhs) {
             return fabs(cv::contourArea(lhs) > fabs(cv::contourArea(rhs)));
@@ -120,10 +126,8 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
             maxAreaContours.push_back(contours[0]);
           }
           auto all_moments = cv::moments(maxAreaContours[0], true);
-          measurement_.at<float>(0,0) = static_cast<float>((all_moments.m10 / all_moments.m00) );
-          measurement_.at<float>(1,0) = static_cast<float>((all_moments.m01 / all_moments.m00) ) ;
-          //std::cout << "At index " << cnt << " : " << std::endl;
-          ++cnt;
+          measurement_.at<float>(0, 0) = static_cast<float>((all_moments.m10 / all_moments.m00));
+          measurement_.at<float>(1, 0) = static_cast<float>((all_moments.m01 / all_moments.m00));
           rect_detect = cv::boundingRect(maxAreaContours[0]);
           //rect_detect.height = 50;
           //rect_detect.width  = 50;
@@ -132,28 +136,36 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
           //std::cout << "measurement 00 = " << measurement_.at<float>(0,0) << std::endl;
           //std::cout << "measurement 01 = " << measurement_.at<float>(0,1) << std::endl;
           kalmanFilter_.correct(measurement_);
-          //cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
+          cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
           //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
         }
         kalmanState_ = kalmanFilter_.predict();
-        //std::cout << "kalman state = " << kalmanState_ << std::endl ;
-        cv::Rect rect_tracking(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width/2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height/2, rect_detect.width, rect_detect.height);
-        cv::rectangle(frame_orig, rect_tracking, cv::Scalar(255,0,0), 3);
-        cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
-
-
-      //cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
-      //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
-      //show the current frame and the fg masks
-      imshow("Frame", frame);
-      imshow("FG Mask", fgMask);
-      imshow("Contours", frame_orig);
-
-      //get the input from the keyboard
-      int keyboard = cv::waitKey(30);
-      if (keyboard == 'q' || keyboard == 27)
-        break;
+        rect_tracking = cv::Rect(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width / 2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height / 2, rect_detect.width, rect_detect.height);
+        cv::rectangle(frame_orig, rect_tracking, cv::Scalar(0, 255, 0), 3);
+      }
+    else
+    {
+      kalmanState_ = kalmanFilter_.predict();
+      rect_tracking = cv::Rect(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width / 2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height / 2, 100, 100);
+      cv::rectangle(frame_orig, rect_tracking, cv::Scalar(0, 0, 255), 3);
+      //std::cout << "kalman state = " << kalmanState_ << std::endl ;
     }
+
+    //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
+
+
+    //cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
+    //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
+    //show the current frame and the fg masks
+    imshow("Frame", frame);
+    imshow("FG Mask", fgMask);
+    imshow("Contours", frame_orig);
+
+    //get the input from the keyboard
+    int keyboard = cv::waitKey(30);
+    if (keyboard == 'q' || keyboard == 27)
+      break;
+  }
   }
 }
 
