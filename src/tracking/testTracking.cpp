@@ -18,12 +18,12 @@
 // U, The move vector
 // Size = n x 1 = 2 x 1
 
-// TODO Fix the kalman gemm, kf.correct(measure) error
-// TODO Go through the kalman filter implementation in openCV
-// TODO Visualize the Matrix value changes as well
-// TODO Understand Kalman filter i.e measurement, predict, correct steps. Set up kalman filter based on the opencv example - https://docs.opencv.org/4.5.0/de/d70/samples_2cpp_2kalman_8cpp-example.html#a23
+// Requirements
+// Should detect still objects in the foreground, and as they move it should track. If the object stops moving, still keep track of it.
+// Occlusions, track it for up a threshold time limit, default = 2 sec
+// TODO Refactor the code to cleanup, to reorg data structs
 // TODO Create data structures that tracks all the filtered Contours. - How to model occlusions? missed detecting object in a certain frames.
-// TODO Determine velocity, and define residual error, for each each of the contours.
+// TODO Determine residual error, for each each of the contours.
 // TODO Lighting affects foreground noise, enhance it using hist equalization(didn't work), AGC(need to try).
 // Depth map hole filling - https://github.com/juniorxsound/ThreadedDepthCleaner
 

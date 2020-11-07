@@ -33,7 +33,7 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
     cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
 
     // TODO refactor Kalman related states
-    cv::KalmanFilter kalmanFilter_(2,1,0);
+    cv::KalmanFilter kalmanFilter_(4,2,0);
     cv::Mat kalmanState_(2,1, CV_32F);
     cv::Mat processNoise_(2,1,CV_32F);
     cv::Mat measurement_ = cv::Mat::zeros(2,1,CV_32F);
@@ -62,8 +62,10 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
         //  (all_moments.m01 / all_moments.m00)};
         //kalmanFilter_.statePre.at<double>(0,0) = statesKf_.CurrStateDetected.centroid_measured.x;
         //kalmanFilter_.statePre.at<double>(1,0) = statesKf_.CurrStateDetected.centroid_measured.y;
-        kalmanFilter_.statePre.at<double>(0,0) = 320;
-        kalmanFilter_.statePre.at<double>(1,0) = 240;
+        kalmanFilter_.statePre.at<double>(0) = 320;
+        kalmanFilter_.statePre.at<double>(1) = 240;
+        kalmanFilter_.statePre.at<double>(2) = 0;
+        kalmanFilter_.statePre.at<double>(3) = 0;
         //cv::Rect rect = cv::boundingRect(contours[0]);
         //cv::rectangle(frame_orig, rect, cv::Scalar(0,0,255), 3);
 
@@ -74,8 +76,13 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
         //cv::waitKey(0);
       }
       //randn( kalmanState_, cv::Scalar::all(0), cv::Scalar::all(0.1) );
-      kalmanFilter_.transitionMatrix = (cv::Mat_<float>(2, 2) << 1, 1, 0, 1);
+      // x y dx dy
+      // 1 0 1 0
+      // 0 1 0 1
+      // 0 0 1 0
+      // 0 0 0 1
       setIdentity(kalmanFilter_.measurementMatrix);
+      kalmanFilter_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1,0,1,0,  0,1,0,1,  0,0,1,0,  0,0,0,1);
       setIdentity(kalmanFilter_.processNoiseCov, cv::Scalar::all(1e-5));
       setIdentity(kalmanFilter_.measurementNoiseCov, cv::Scalar::all(1e-1));
       setIdentity(kalmanFilter_.errorCovPost, cv::Scalar::all(1));
@@ -84,22 +91,22 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
     }
     cv::Mat frame, fgMask;
     cv::Rect rect_measured;
-    std::vector<std::vector<cv::Point>> maxAreaContours;
+
     cam.GetCurrentFrame(frame);
+    int cnt = 0;
     while (true) {
+      std::vector<std::vector<cv::Point>> maxAreaContours;
       cam.GetCurrentFrame(frame);
       if (frame.empty())
         break;
       cv::Mat frame_orig = frame.clone();
-      if(cv::theRNG().uniform(0,4) != 0) {
+      //if(cv::theRNG().uniform(0,4) != 0) {
         FilterAndErode(frame);
         pBackSub->apply(frame, fgMask, 0.99);
         std::vector<std::vector<cv::Point>> contours;
         cv::findContours(fgMask, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
 
-        //std::vector<cv::Point2d> filteredCentroids;
-        //std::vector<cv::Point> approxCurve;
-
+      cv::Rect rect_detect;
         if (!contours.empty()) {
           std::sort(contours.begin(), contours.end(), [](auto &lhs, auto &rhs) {
             return fabs(cv::contourArea(lhs) > fabs(cv::contourArea(rhs)));
@@ -113,26 +120,27 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
             maxAreaContours.push_back(contours[0]);
           }
           auto all_moments = cv::moments(maxAreaContours[0], true);
-          measurement_.at<double>(0,0) = (all_moments.m10 / all_moments.m00);
-          measurement_.at<double>(1,0) = (all_moments.m01 / all_moments.m00);
-
-          cv::Rect rect_detect = cv::boundingRect(maxAreaContours[0]);
-          rect_detect.height = 50;
-          rect_detect.width  = 50;
-          cv::rectangle(frame_orig, rect_detect, cv::Scalar(0, 255, 0), 3);
-          rect_measured = rect_detect;
+          measurement_.at<float>(0,0) = static_cast<float>((all_moments.m10 / all_moments.m00) );
+          measurement_.at<float>(1,0) = static_cast<float>((all_moments.m01 / all_moments.m00) ) ;
+          //std::cout << "At index " << cnt << " : " << std::endl;
+          ++cnt;
+          rect_detect = cv::boundingRect(maxAreaContours[0]);
+          //rect_detect.height = 50;
+          //rect_detect.width  = 50;
+          //cv::rectangle(frame_orig, rect_detect, cv::Scalar(0, 255, 0), 3);
           //measurement_ = kalmanFilter_.measurementMatrix*kalmanState_;
-          std::cout << "measurement = " << measurement_ << std::endl;
-          if(!measurement_.empty())
-            kalmanFilter_.correct(measurement_);
-          cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
+          //std::cout << "measurement 00 = " << measurement_.at<float>(0,0) << std::endl;
+          //std::cout << "measurement 01 = " << measurement_.at<float>(0,1) << std::endl;
+          kalmanFilter_.correct(measurement_);
+          //cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
           //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
         }
-      } else {
         kalmanState_ = kalmanFilter_.predict();
-        cv::Rect rect_tracking(kalmanState_.at<int>(0), kalmanState_.at<int>(1), 50, 50);
-        cv::rectangle(frame_orig, rect_measured, cv::Scalar(255,0,0), 3);
-      }
+        //std::cout << "kalman state = " << kalmanState_ << std::endl ;
+        cv::Rect rect_tracking(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width/2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height/2, rect_detect.width, rect_detect.height);
+        cv::rectangle(frame_orig, rect_tracking, cv::Scalar(255,0,0), 3);
+        cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
+
 
       //cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
       //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
