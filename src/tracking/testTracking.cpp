@@ -21,16 +21,13 @@
 // Requirements
 // Should detect still objects in the foreground, and as they move it should track. If the object stops moving, still keep track of it.
 // Occlusions, track it for up a threshold time limit, default = 2 sec
+// TODO Add the depth sensor to kalman filter
 // TODO Refactor the code to cleanup, to reorg data structs
 // TODO Create data structures that tracks all the filtered Contours. - How to model occlusions? missed detecting object in a certain frames.
-// TODO Add the depth sensor to kalman filter
 // TODO Determine residual error, for each each of the contours.
 // TODO Lighting affects foreground noise, enhance it using hist equalization(didn't work), AGC(need to try).
 // Depth map hole filling - https://github.com/juniorxsound/ThreadedDepthCleaner
 
-//void GetContourDepth(std::vector<std::vector<cv::Point2d>>, ){
-//
-//}
 
 int main()
 {

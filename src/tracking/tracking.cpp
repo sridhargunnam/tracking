@@ -76,7 +76,7 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
       frame_orig = frame.clone();
       cv::Rect rect_detect;
 
-      if ( run_once || (cv::theRNG().uniform(0, 100) < 50) ){
+      if ( run_once || (cv::theRNG().uniform(0, 100) < 100) ){
         run_once = false;
         FilterAndErode(frame);
         pBackSub->apply(frame, fgMask, 0.99);
@@ -119,17 +119,18 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
         }
         kalmanFilter_.correct(measurement_);
         kalmanState_ = kalmanFilter_.predict();
-        rect_tracking = cv::Rect(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width / 2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height / 2, rect_detect.width, rect_detect.height);
-        cv::rectangle(frame_orig, rect_tracking, cv::Scalar(0, 255, 0), 3);
+        //rect_tracking = cv::Rect(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width / 2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height / 2, rect_detect.width, rect_detect.height);
+        cv::rectangle(frame_orig, rect_detect, cv::Scalar(0, 255, 0), 3);
         std::cout << "kalman state = " << kalmanState_ << std::endl ;
       }
     else
     {
       kalmanState_ = kalmanFilter_.predict();
-      rect_tracking = cv::Rect(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width / 2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height / 2, 100, 100);
-      cv::rectangle(frame_orig, rect_tracking, cv::Scalar(0, 0, 255), 3);
+      //rect_tracking = cv::Rect(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width / 2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height / 2, 100, 100);
+//      cv::rectangle(frame_orig, rect_tracking, cv::Scalar(0, 0, 255), 3);
     }
-
+    rect_tracking = cv::Rect(static_cast<int>(kalmanState_.at<float>(0)) - rect_detect.width / 2, static_cast<int>(kalmanState_.at<float>(1)) - rect_detect.height / 2, 100, 100);
+    cv::rectangle(frame_orig, rect_tracking, cv::Scalar(0, 0, 255), 3);
     //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
     //cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
     //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
