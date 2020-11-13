@@ -9,6 +9,9 @@
 
 #include<opencv2/opencv.hpp>
 #include<opencv2/imgproc.hpp>
+#include <opencv2/rgbd.hpp>
+
+
 
 #include <librealsense2/rs.hpp>
 
@@ -88,8 +91,13 @@ public:
       video_capture_ = cv::VideoCapture(4);
       //video_capture_.open(0,cv::CAP_V4L);
     } else {
+      //Create a configuration for configuring the pipeline with a non default profile
+      rs2::config cfg;
+
+      //Add desired streams to configuration
+      cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 30);
       // Start streaming with default recommended configuration
-      pipe.start();
+      pipe.start(cfg);
     }
   }
 
@@ -108,7 +116,7 @@ public:
       video_capture_ >> image;
     } else {
       rs2::frameset data = pipe.wait_for_frames();// Wait for next set of frames from the camera
-      rs2::frame depth = data.get_depth_frame().apply_filter(color_map);
+      rs2::frame depth_frame = data.get_depth_frame().apply_filter(color_map);
       rs2::frame color_frame = data.get_color_frame();
 
       // Query frame size (width and height)
@@ -118,6 +126,51 @@ public:
       // Create OpenCV cv::Matrix of size (w,h) from the colorized depth data
       image = cv::Mat(cv::Size(w, h), CV_8UC3, (void *)color_frame.get_data(), cv::Mat::AUTO_STEP);
     }
+  }
+
+  void GetDepthFrame(cv::Mat &image){
+    rs2::frameset data = pipe.wait_for_frames();// Wait for next set of frames from the camera
+    rs2::frame depth_frame = data.get_depth_frame().apply_filter(color_map);
+    rs2::frame color_frame = data.get_color_frame();
+
+
+    // Query frame size (width and height)
+    const int w = depth_frame.as<rs2::video_frame>().get_width();
+    const int h = depth_frame.as<rs2::video_frame>().get_height();
+    std::cout << (void *)depth_frame.get_data() << std::endl;
+
+//    float* datap = (float *)depth_frame.get_data();
+//    for(auto i=0; i<w*h; i++){
+//      std::cout << "data at " << i << " = " << datap[i]  << std::endl;
+//    }
+    // Create OpenCV cv::Matrix of size (w,h) from the colorized depth data
+    image = cv::Mat(cv::Size(w,h), CV_16U, (void *)depth_frame.get_data(), cv::Mat::AUTO_STEP);
+    cv::rgbd::DepthCleaner* depthc = new cv::rgbd::DepthCleaner(CV_16U, 7, cv::rgbd::DepthCleaner::DEPTH_CLEANER_NIL);
+
+    cv::Mat cleanedDepth(cv::Size(w, h), CV_16U);
+    depthc->operator()(image, cleanedDepth);
+    cv::imshow("temp", cleanedDepth);
+    cv::waitKey(0);
+//    auto max = cv::max(image);
+//    auto min = cv::min(image);
+    std::cout << "w" << w << std::endl;
+    std::cout << "h" << h << std::endl;
+    std::cout << "image size" << image.size() << std::endl;
+//    for(auto i=0; i < h; i++ ){
+//      for(auto j=0; j < w; j++ ) {
+//        std::cout << "At (" << i << " , " << j << ")" << image.at<float>(j,i) << std::endl;
+//      }
+//    }
+    //cv::patchNaNs(image, 0);
+    //image.convertTo(image, CV_64F);
+//    std::cout << "nan imaghe:" << image << std::endl;
+//    image = cv::imread("/home/sgunnam/Pictures/headPose.jpg");
+//    std::cout << "saTYA imaghe:" << image << std::endl;
+//    double min;
+//    double max;
+//    cv::minMaxLoc(image, &min, &max);
+//    std::cout << "min = " << min << std::endl;
+//    std::cout << "max = " << max << std::endl;
   }
 };
 

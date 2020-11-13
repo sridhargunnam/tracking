@@ -28,6 +28,14 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
     }
   } else if (trackingParams.trackingType == TrackingAlgorithm::CONTOUR) {
     auto cam = MyCam(trackingParams);
+
+    while(true){
+      cv::Mat depth_frame;
+      cam.GetDepthFrame(depth_frame);
+      cv::imshow("depth_frame", depth_frame);
+      cv::waitKey(0);
+    }
+
     cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
 
     // TODO refactor Kalman related states
