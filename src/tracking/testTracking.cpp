@@ -23,7 +23,9 @@
 // Should detect still objects in the foreground, and as they move it should track. If the object stops moving, still keep track of it.
 // Occlusions, track it for up a threshold time limit, default = 2 sec
 // TODO Add the depth sensor to kalman filter
-//  - Generate contours from depth map, get centroid's depth of the contour.(Assumption is object is mostly planar)
+//  - Fix kalman filter. Viz contours from frameD.
+//      - Complete GetDepth frame code
+//      - Move the runDepthCleaner logic to separate function in Tracking.cpp, just like FilterAndErode
 //  - Add 3 measurements (x,y,z) from depth map to kalman measure state
 // TODO Refactor the code to cleanup, to reorg data structs
 // TODO Create data structures that tracks all the filtered Contours. - How to model occlusions? missed detecting object in a certain frames.
@@ -117,7 +119,7 @@ void make_depth_histogram(const Mat &depth, Mat &normalized_depth, int coloringM
 void runDepthCleaner() {
 
   //Create a depth cleaner instance
-  rgbd::DepthCleaner* depthc = new rgbd::DepthCleaner(CV_16U, 7, rgbd::DepthCleaner::DEPTH_CLEANER_NIL);
+  rgbd::DepthCleaner depthc(CV_16U, 7, rgbd::DepthCleaner::DEPTH_CLEANER_NIL);
 
   // Declare RealSense pipeline, encapsulating the actual device and sensors
   rs2::pipeline pipe;
@@ -171,7 +173,7 @@ void runDepthCleaner() {
            // Create an openCV matrix for the DepthCleaner instance to write the output to
            Mat cleanedDepth(Size(w, h), CV_16U);
            //Run the RGBD depth cleaner instance
-           depthc->operator()(rawDepthMat, cleanedDepth);
+           depthc.operator()(rawDepthMat, cleanedDepth);
 //           cv::Mat fgMask;
 //           cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
 //           cv::Size gaussian_kernel = cv::Size(25, 25);
