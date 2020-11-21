@@ -32,6 +32,8 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
     cv::rgbd::DepthCleaner depthc(CV_16U, 7, cv::rgbd::DepthCleaner::DEPTH_CLEANER_NIL);
 
     cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
+    //cv::Ptr<cv::BackgroundSubtractor> pBackSubD{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
+    cv::Ptr<cv::BackgroundSubtractor> pBackSubD{ cv::createBackgroundSubtractorMOG2(1, 100.0, false) };
 
     // TODO refactor Kalman related states
     cv::KalmanFilter kalmanFilter_(6, 3, 0);
@@ -115,16 +117,17 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
 
         // Depth frame processing
         CleanDepthMap(frameD);
+        pBackSubD->apply(frameD, fgMaskD, 0.99);
         // std::vector<std::vector<cv::Point>> contoursD;
-        cv::findContours(frameD, contoursD, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+        cv::findContours(fgMaskD, contoursD, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
         if (!contoursD.empty()) {
           std::sort(contoursD.begin(), contoursD.end(), [](auto &lhs, auto &rhs) {
             return fabs(cv::contourArea(lhs) > fabs(cv::contourArea(rhs)));
           });
           
-          maxAreaContoursD.push_back(contours[0]);
+          maxAreaContoursD.push_back(contoursD[0]);
           std::cout << " cv::contourArea(maxAreaContoursD[0]) " << cv::contourArea(maxAreaContoursD[0]) << "\n";
-          if (fabs(cv::contourArea(maxAreaContoursD[0])) > 100) {
+          if (fabs(cv::contourArea(maxAreaContoursD[0])) > 1000) {
             auto all_moments = cv::moments(maxAreaContoursD[0], true);
             measurement_.at<float>(0, 0) = static_cast<float>((all_moments.m10 / all_moments.m00));
             measurement_.at<float>(1, 0) = static_cast<float>((all_moments.m01 / all_moments.m00));
@@ -146,8 +149,7 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
             measurementPrev_.copyTo(measurement_);
           }
         }
-        cv::drawContours(im8u, maxAreaContoursD, -1, cv::Scalar(255, 0, 0), 3);
-        cv::imwrite()
+        cv::drawContours(im8u, maxAreaContoursD, 0, cv::Scalar(255, 0, 0), 3);
         //std::cout << "measure error point = " << measurement_ << std::endl;
         kalmanFilter_.correct(measurement_);
         kalmanState_ = kalmanFilter_.predict();
@@ -165,6 +167,8 @@ Tracking::Tracking(TrackingParams &trackingParams) : trackingParams_(trackingPar
       //cv::rectangle(frame_orig, rect_measured, cv::Scalar(0,0,255), 3);
       //cv::drawContours(frame_orig, maxAreaContours, -1, cv::Scalar(255, 0, 0), 3);
       //show the current frame and the fg masks
+      imshow("fgMaskD", fgMaskD);
+
       imshow("Frame", frameD);
       imshow("Contours", im8u);
 
@@ -324,14 +328,14 @@ void Tracking::CleanDepthMap(cv::Mat &img) const
   depthc.operator()(img, cleanedDepth);
   cv::Mat cleanedDepth8U(cv::Size(w, h), CV_8UC1);
   cleanedDepth.convertTo(cleanedDepth8U, CV_8UC1);
-  int kernel_size = 7;
-  cv::Size gaussian_kernel = cv::Size(kernel_size, kernel_size);
-  cv::GaussianBlur(cleanedDepth8U, cleanedDepth8U, gaussian_kernel, 0, 0);
-  cv::adaptiveThreshold(cleanedDepth8U, img, 500, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 7, 0 );
+  //int kernel_size = 7;
+  //cv::Size gaussian_kernel = cv::Size(kernel_size, kernel_size);
+  //cv::GaussianBlur(cleanedDepth8U, cleanedDepth8U, gaussian_kernel, 0, 0);
+  cv::adaptiveThreshold(cleanedDepth8U, img, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 7, 0 );
   //cv::dilate(img, img, cv::Mat(), cv::Point(-1, -1), 5, 1, 1);
   //cv::erode(img,img, cv::Mat(),cv::Point(-1,-1));
-  cv::Mat kernel_mat = cv::Mat::ones(30,30, CV_8U);
-  cv::morphologyEx(img, img, cv::MORPH_CLOSE, kernel_mat);
+  //cv::Mat kernel_mat = cv::Mat::ones(30,30, CV_8U);
+  //cv::morphologyEx(img, img, cv::MORPH_CLOSE, kernel_mat);
 }
 
 void Tracking::UpdateTracker(const cv::Mat &currFrame, const cv::Mat &prevFrame, States &states) const

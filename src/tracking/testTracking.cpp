@@ -24,11 +24,7 @@
 // Occlusions, track it for up a threshold time limit, default = 2 sec
 // TODO Add the depth sensor to kalman filter
 //  - Fix kalman filter. Viz contours from frameD.
-//      - Work more scientifically
-//      - Capture an image and step through getCleanedDepthMap step by step.
-//      - Complete GetDepth frame code
-//      - Move the runDepthCleaner logic to separate function in Tracking.cpp, just like FilterAndErode
-//  - Add 3 measurements (x,y,z) from depth map to kalman measure state
+//      - Depth cleaner is not doing it's job. Not filling holes. Therefore to reduce noise we increased maxAreaContour(Hack) to suppress the noise.
 // TODO Refactor the code to cleanup, to reorg data structs
 // TODO Create data structures that tracks all the filtered Contours. - How to model occlusions? missed detecting object in a certain frames.
 // TODO Determine residual error, for each each of the contours.
@@ -49,7 +45,7 @@ void runDepthCleaner();
 
 int main()
 {
-    //runDepthCleaner();
+    runDepthCleaner();
     std::cout << "Testing Tracking\n";
     TrackingParams trackingParams;
     Tracking tracking{trackingParams};
@@ -196,7 +192,7 @@ void runDepthCleaner() {
            cleanedDepth.convertTo(im8u, CV_8UC1, 0.1);
            imshow("im8u  depth", im8u);
            waitKey(0);
-           std::cout << "Image 8 bit depth values" << im8u << std::endl;
+           //std::cout << "Image 8 bit depth values" << im8u << std::endl;
 
 
            std::cout << "  cleanedDepth.at(250, 300) " << cleanedDepth.at<unsigned short>(250, 300) << std::endl;
@@ -216,6 +212,8 @@ void runDepthCleaner() {
                     return fabs(cv::contourArea(lhs) > fabs(cv::contourArea(rhs)));
              });
              cv::drawContours(im8u, contours, 0, cv::Scalar(255, 0, 0), 3);
+             std::cout << " cv::contourArea(contours[0]) " << cv::contourArea(contours[0]) << "\n";
+
              imshow("contoured depth", im8u);
              waitKey(0);
            }
