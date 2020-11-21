@@ -24,6 +24,8 @@
 // Occlusions, track it for up a threshold time limit, default = 2 sec
 // TODO Add the depth sensor to kalman filter
 //  - Fix kalman filter. Viz contours from frameD.
+//      - Work more scientifically
+//      - Capture an image and step through getCleanedDepthMap step by step.
 //      - Complete GetDepth frame code
 //      - Move the runDepthCleaner logic to separate function in Tracking.cpp, just like FilterAndErode
 //  - Add 3 measurements (x,y,z) from depth map to kalman measure state
