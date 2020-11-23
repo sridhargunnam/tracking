@@ -22,13 +22,14 @@
 // Requirements
 // Should detect still objects in the foreground, and as they move it should track. If the object stops moving, still keep track of it.
 // Occlusions, track it for up a threshold time limit, default = 2 sec
-// TODO Add the depth sensor to kalman filter
-//  - Fix kalman filter. Viz contours from frameD.
-//      - Depth cleaner is not doing it's job. Not filling holes. Therefore to reduce noise we increased maxAreaContour(Hack) to suppress the noise.
 // TODO Refactor the code to cleanup, to reorg data structs
-// TODO Create data structures that tracks all the filtered Contours. - How to model occlusions? missed detecting object in a certain frames.
-// TODO Determine residual error, for each each of the contours.
-// TODO Lighting affects foreground noise, enhance it using hist equalization(didn't work), AGC(need to try).
+//      - Create data structures that tracks all the filtered Contours. - How to model occlusions? missed detecting object in a certain frames.
+// TODO Add the depth sensor to kalman filter
+//      - Depth cleaner is not doing it's job. Not filling holes. Therefore to reduce noise we increased maxAreaContour(Hack) to suppress the noise.
+//      - Depth cleaner should not use background subtractor.
+//          - Foreground will have smaller values than the background. So thresholding needs to be better. But it has lot of noise now.
+//          - Because for small/no movements background subtractor will ignore the static parts.
+// TODO Vision sensor: Lighting affects foreground noise, enhance it using hist equalization(didn't work), AGC(need to try).
 // Depth map hole filling - https://github.com/juniorxsound/ThreadedDepthCleaner
 
 
@@ -45,7 +46,7 @@ void runDepthCleaner();
 
 int main()
 {
-    runDepthCleaner();
+    //runDepthCleaner();
     std::cout << "Testing Tracking\n";
     TrackingParams trackingParams;
     Tracking tracking{trackingParams};
