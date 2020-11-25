@@ -1,6 +1,6 @@
 # Generic test that uses conan libs
 set(RS2_DEPENDENCIES realsense2)
-add_library(libTracking tracking.cpp tracking.h ShowMultipleImages.h)
+add_library(libTracking tracking.cpp tracking.h ShowMultipleImages.h SensorModule.cpp SensorModule.h)
 target_link_libraries(libTracking
         PRIVATE project_options
         project_warnings
