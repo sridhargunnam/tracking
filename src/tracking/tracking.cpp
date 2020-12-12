@@ -4,17 +4,25 @@
 
 #include "tracking.h"
 
-Tracking::Tracking(DetectionType detection_type) : detection_type_(detection_type)
-{
-  switch (detection_type) {
-  case DetectionType::DEPTH_AND_COLOR_CONTOUR: {
+class KalmanWrapper{
+  cv::KalmanFilter kalman_filter_;
+  cv::Mat processNoise_;
+  cv::Mat measurement_ ;
+  cv::Mat measurementPrev_;
 
-    auto cam = CameraModule(CameraType::REALSENSE_VISION_AND_DEPTH);
+
+};
+
+Tracking::Tracking(ConfigurationParams configuration_params) : configuration_params_(configuration_params)
+{
+  switch (configuration_params.detection_type_) {
+  case DetectionType::DEPTH_AND_COLOR_CONTOUR: {
+    // Note: we m want to add exceptions for the 3 other cases
+    auto cam = CameraModule(configuration_params_.camera_type_);
     //Create a depth cleaner instance
     cv::rgbd::DepthCleaner depthc(CV_16U, 7, cv::rgbd::DepthCleaner::DEPTH_CLEANER_NIL);
 
     cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
-    //cv::Ptr<cv::BackgroundSubtractor> pBackSubD{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
     cv::Ptr<cv::BackgroundSubtractor> pBackSubD{ cv::createBackgroundSubtractorMOG2(1, 100.0, false) };
 
     cv::KalmanFilter kalmanFilter_(4, 2, 0);
@@ -32,13 +40,7 @@ Tracking::Tracking(DetectionType detection_type) : detection_type_(detection_typ
     cv::Mat measurementPrev_D = cv::Mat::zeros(3, 1, CV_32F);
 
     {
-      // Vision
-      {
-        kalmanFilter_.statePre.at<double>(0) = 320;
-        kalmanFilter_.statePre.at<double>(1) = 240;
-        kalmanFilter_.statePre.at<double>(2) = 0;
-        kalmanFilter_.statePre.at<double>(3) = 0;
-      }
+
       setIdentity(kalmanFilter_.measurementMatrix);
       kalmanFilter_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
       // processNoise needs empirical estimation, it can't be just some random value. eg. for 1e-5 , ti stops tracking when there is no motion in the scene.
@@ -46,15 +48,6 @@ Tracking::Tracking(DetectionType detection_type) : detection_type_(detection_typ
       setIdentity(kalmanFilter_.measurementNoiseCov, cv::Scalar::all(1e-3));
       setIdentity(kalmanFilter_.errorCovPost, cv::Scalar::all(1));
 
-      // Depth
-      {
-        kalmanFilter_D.statePre.at<double>(0) = 320;
-        kalmanFilter_D.statePre.at<double>(1) = 240;
-        kalmanFilter_D.statePre.at<double>(2) = 500;
-        kalmanFilter_D.statePre.at<double>(3) = 0;
-        kalmanFilter_D.statePre.at<double>(4) = 0;
-        kalmanFilter_D.statePre.at<double>(5) = 0;
-      }
       //randn( kalmanState_, cv::Scalar::all(0), cv::Scalar::all(0.1) );
       // x  y  z  dx dy dz
       // 1  0  0  1  0  0
@@ -218,14 +211,9 @@ Tracking::Tracking(DetectionType detection_type) : detection_type_(detection_typ
   }
 
   case DetectionType::COLOR_CONTOUR: {
-    auto cam = CameraModule(CameraType::REALSENSE_VISION);
 
-    //    while(true){
-    //      cv::Mat depth_frame;
-    //      cam.GetDepthFrame(depth_frame);
-    //      cv::imshow("depth_frame", depth_frame);
-    //      cv::waitKey(0);
-    //    }
+    //Note: To change to different camera change the type here.
+    auto cam = CameraModule(configuration_params_.camera_type_);
 
     cv::Ptr<cv::BackgroundSubtractor> pBackSub{ cv::createBackgroundSubtractorKNN(1, 100.0, true) };
 

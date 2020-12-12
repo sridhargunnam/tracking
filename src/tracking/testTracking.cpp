@@ -12,7 +12,8 @@
 //      - Visual to depth capture latency
 
 // TODO Refactoring notes
-// - Cleanup tracking.cpp, reuse
+// - Cleanup tracking.cpp, complete KalmanWrapper
+// - Try registering sensor module with kalman?
 
 #include "tracking.h"
 
@@ -22,6 +23,6 @@ int main()
 {
     //runDepthCleaner();
     std::cout << "Testing Tracking\n";
-    Tracking tracking{DetectionType::DEPTH_AND_COLOR_CONTOUR};
+    Tracking tracking{ {DetectionType::DEPTH_AND_COLOR_CONTOUR, CameraType::REALSENSE_VISION_AND_DEPTH}};
     return 0;
 }

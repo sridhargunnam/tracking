@@ -22,14 +22,16 @@
 // size of the object to be tracked
 enum class DetectionType { COLOR_CONTOUR, DEPTH_AND_COLOR_CONTOUR };
 
-
+struct ConfigurationParams{
+  DetectionType detection_type_;
+  CameraType camera_type_;
+};
 
 class Tracking
 {
-  DetectionType detection_type_;
-
+  ConfigurationParams configuration_params_;
 public:
-  explicit Tracking(DetectionType detection_type);
+  explicit Tracking(ConfigurationParams);
 private:
 
   void FilterAndErode(cv::Mat& im) const;
